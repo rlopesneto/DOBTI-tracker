@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DOBTI Work Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCVeRm1g_-bm-DqzqngY6i-yDzStAieGek",
+      authDomain: "mydesk-10b14.firebaseapp.com",
+      projectId: "mydesk-10b14",
+      storageBucket: "mydesk-10b14.firebasestorage.app",
+      messagingSenderId: "463410962913",
+      appId: "1:463410962913:web:5fd6963e06a5cd9ba2b2a0"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const docRef = doc(db, "togaf", "tracker");
+
+    const phases = {
+      A: ['Architecture Vision document', 'Statement of Architecture Work', 'Stakeholder Map & Concerns', 'High-level Solution Concept Diagram'],
+      B: ['Business Architecture Document', 'Business Process Models (BPMN, ArchiMate)', 'Business Capability Map', 'Actor/Role Catalog', 'Business Function Catalog', 'Organization Model'],
+      C: ['Data Entity/Data Component Catalog', 'Data Lifecycle Diagram', 'Data Flow Diagrams', 'Logical & Physical Data Models', 'Application Portfolio Catalog', 'Application Interaction Matrix', 'Interface Catalog', 'Application Communication Diagram'],
+      D: ['Technology Architecture Document', 'Technology Standards Catalog', 'Platform Decomposition Diagram', 'Network Diagrams', 'Technology Component Model', 'Infrastructure Interface Catalog'],
+      E: ['Solution Building Blocks (SBBs)', 'Architecture Roadmap', 'Benefits Assessment', 'Project Portfolio', 'Transition Architectures', 'Solution Concept Diagrams']
+    };
+
+    let cachedData = {};
+
+    function renderBadge(status) {
+      const badgeClass = {
+        'To Do': 'todo',
+        'In Progress': 'inprogress',
+        'Done': 'done'
+      }[status] || 'todo';
+      return `<span class="badge ${badgeClass}">${status}</span>`;
+    }
+
+    function renderTable(phase, items, data) {
+      let html = `<div class="phase-card"><div class="phase-title">Phase ${phase}</div><table><tr><th>Deliverable</th><th>Assigned To</th><th>Deadline</th><th>Status</th><th>Notes</th></tr>`;
+      items.forEach((item, idx) => {
+        const key = `${phase}-${idx}`;
+        const row = data[key] || { assigned: '', deadline: '', status: 'To Do', notes: '' };
+        html += `<tr>
+          <td>${item}</td>
+          <td><input value="${row.assigned}" onchange="window.update('${key}', 'assigned', this.value)" /></td>
+          <td><input type="date" value="${row.deadline}" onchange="window.update('${key}', 'deadline', this.value)" /></td>
+          <td>
+            ${renderBadge(row.status)}
+            <select onchange="window.update('${key}', 'status', this.value)" style="margin-top: 6px;">
+              <option${row.status === 'To Do' ? ' selected' : ''}>To Do</option>
+              <option${row.status === 'In Progress' ? ' selected' : ''}>In Progress</option>
+              <option${row.status === 'Done' ? ' selected' : ''}>Done</option>
+            </select>
+          </td>
+          <td><textarea rows="1" onchange="window.update('${key}', 'notes', this.value)">${row.notes}</textarea></td>
+        </tr>`;
+      });
+      html += '</table></div>';
+      return html;
+    }
+
+    function updateProgress(data) {
+      const total = Object.entries(phases).reduce((sum, [phase, items]) => sum + items.length, 0);
+      const done = Object.entries(data).filter(([, v]) => v.status === 'Done').length;
+      const percent = Math.round((done / total) * 100);
+      document.getElementById('progress-bar').style.width = `${percent}%`;
+    }
+
+    async function update(key, field, value) {
+      cachedData[key] = { ...cachedData[key], [field]: value };
+      await setDoc(docRef, cachedData);
+    }
+
+    function renderAll(data) {
+      cachedData = data;
+      document.getElementById('tracker').innerHTML = Object.entries(phases).map(([p, items]) => renderTable(p, items, data)).join('');
+      updateProgress(data);
+    }
+
+    onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        renderAll(docSnap.data());
+      } else {
+        setDoc(docRef, {});
+      }
+    });
+
+    window.update = update;
+  </script>
+  <style>
+    /* [Same styles as before, omitted for brevity] */
+    body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #111827; padding: 20px; }
+    h1 { text-align: center; font-size: 2.5rem; margin-bottom: 10px; color: #000000; }
+    #progress-container { width: 100%; background: #e5e7eb; border-radius: 10px; height: 20px; margin: 10px auto 40px; overflow: hidden; }
+    #progress-bar { height: 100%; background: #21df21; width: 0%; transition: width 0.3s ease-in-out; }
+    .phase-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 40px; }
+    .phase-title { font-size: 1.5rem; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 15px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    th { background: #f3f4f6; font-weight: 600; color: #6b7280; font-size: 0.95rem; }
+    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font: inherit; background: #fff; font-size: 0.9rem; }
+    textarea { resize: vertical; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; color: white; text-align: center; }
+    .badge.todo { background-color: #ef4444; }
+    .badge.inprogress { background-color: #f59e0b; }
+    .badge.done { background-color: #10b981; }
+    .footer { text-align: center; margin-top: 60px; padding: 20px; font-size: 0.9rem; color: #6b7280; }
+    .footer span { font-weight: 600; color: #000000; }
+  </style>
+</head>
+<body>
+  <h1>DOBTI Work Tracker</h1>
+  <div id="progress-container"><div id="progress-bar"></div></div>
+  <div id="tracker"></div>
+  <div class="footer">Built by <span>Renato Lopes</span></div>
+</body>
+</html>
