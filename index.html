@@ -12,78 +12,96 @@
 
   <script>
     const firebaseConfig = {
-        apiKey: "AIzaSyBhwLaO4tYfoVsV8vSXiTopmKH5TcpkvzU",
-  authDomain: "dobti-6560c.firebaseapp.com",
-  projectId: "dobti-6560c",
-  storageBucket: "dobti-6560c.firebasestorage.app",
-  messagingSenderId: "835699682423",
-  appId: "1:835699682423:web:10abccfec342f134a4aa72",
-  measurementId: "G-TNMRJHJZQX"
-};
+      apiKey: "AIzaSyBhwLaO4tYfoVsV8vSXiTopmKH5TcpkvzU",
+      authDomain: "dobti-6560c.firebaseapp.com",
+      projectId: "dobti-6560c",
+      storageBucket: "dobti-6560c.firebasestorage.app",
+      messagingSenderId: "835699682423",
+      appId: "1:835699682423:web:10abccfec342f134a4aa72",
+      measurementId: "G-TNMRJHJZQX"
+    };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const docRef = db.collection("togaf").doc("tracker");
+    const docRef = db.collection("dobti").doc("unidade-saude");
 
-    const phases = {
-      A: ['Define the scope, stakeholders, business goals, and high-level vision', 'Align the architecture project with business strategy.', 'Establish initial constraints, assumptions, and risks', 'Secure stakeholder buy-in'],
-      B: ['Define business capabilities, processes, and roles.', 'Establish organizational structure and governance model.', 'Identify key performance indicators (KPIs).', 'Map business requirements to IT capabilities.'],
-      C: ['Data Entity/Data Component Catalog', 'Data Lifecycle Diagram', 'Data Flow Diagrams', 'Logical & Physical Data Models', 'Application Portfolio Catalog', 'Application Interaction Matrix', 'Interface Catalog', 'Application Communication Diagram'],
-      D: ['Technology Architecture Document', 'Technology Standards Catalog', 'Platform Decomposition Diagram', 'Network Diagrams', 'Technology Component Model', 'Infrastructure Interface Catalog'],
-      E: ['Solution Building Blocks (SBBs)', 'Architecture Roadmap', 'Benefits Assessment', 'Project Portfolio', 'Transition Architectures', 'Solution Concept Diagrams']
+    const estrutura = {
+      "1. Introdução": [
+        "1.1. Enquadramento",
+        "1.2. Descrição da unidade hospitalar",
+        "1.3. Contextualização do problema",
+        "1.4. Objetivos"
+      ],
+      "2. Arquitetura Empresarial": [
+        "2.1. Referencial TOGAF e a sua aplicabilidade à saúde",
+        "2.2. Gestão de Processos de Negócio (BPM)",
+        "2.3. Impacto e benefícios da adoção da arquitetura empresarial"
+      ],
+      "3. Desenvolvimento da Arquitetura": [
+        "3.1. Fase Preliminar",
+        "3.2. Fase A – Visão da Arquitetura",
+        "3.3. Fase B – Arquitetura de Negócio",
+        "3.4. Fase C – Arquitetura dos Sistemas de Informação",
+        "3.5. Fase D – Arquitetura Tecnológica",
+        "3.6. Fase E – Oportunidades e Soluções"
+      ],
+      "4. Conclusão": [
+        "Sumário dos benefícios, limitações e caminhos futuros"
+      ],
+      "5. Referências Bibliográficas": [
+        "Normas APA (7.ª edição), fontes académicas e técnicas"
+      ],
+      "6. Anexos": [
+        "6.1. Questionário de satisfação",
+        "6.2. Diagramas BPMN",
+        "6.3. Mapeamento de dados e aplicações",
+        "6.4. Matriz RACI e instrumentos de apoio"
+      ]
     };
 
     let cachedData = {};
 
-    function renderBadge(status) {
-      const badgeClass = {
-        'To Do': 'todo',
-        'In Progress': 'inprogress',
-        'Done': 'done'
-      }[status] || 'todo';
-      return `<span class="badge ${badgeClass}">${status}</span>`;
-    }
-
-    function renderTable(phase, items, data) {
-      let html = `<div class="phase-card"><div class="phase-title">Phase ${phase}</div><table><tr><th>Deliverable</th><th>Assigned To</th><th>Deadline</th><th>Status</th><th>Notes</th></tr>`;
+    function renderTable(section, items, data) {
+      let html = `<div class="phase-card"><div class="phase-title">${section}</div><table><tr><th>Tópico</th><th>Responsável</th><th>Prazo</th><th>Status</th><th>Notas</th></tr>`;
       items.forEach((item, idx) => {
-        const key = `${phase}-${idx}`;
+        const key = `${section}-${idx}`;
         const row = data[key] || { assigned: '', deadline: '', status: 'To Do', notes: '' };
         html += `<tr>
           <td>${item}</td>
           <td><input value="${row.assigned}" onchange="update('${key}', 'assigned', this.value)" /></td>
           <td><input type="date" value="${row.deadline}" onchange="update('${key}', 'deadline', this.value)" /></td>
           <td>
-            ${renderBadge(row.status)}
-            <select onchange="update('${key}', 'status', this.value)" style="margin-top: 6px;">
+            <select onchange="update('${key}', 'status', this.value)">
               <option${row.status === 'To Do' ? ' selected' : ''}>To Do</option>
               <option${row.status === 'In Progress' ? ' selected' : ''}>In Progress</option>
               <option${row.status === 'Done' ? ' selected' : ''}>Done</option>
             </select>
           </td>
-          <td><textarea rows="1" onchange="update('${key}', 'notes', this.value)">${row.notes}</textarea></td>
+          <td><textarea onchange="update('${key}', 'notes', this.value)">${row.notes}</textarea></td>
         </tr>`;
       });
       html += '</table></div>';
       return html;
     }
 
-    function updateProgress(data) {
-      const total = Object.entries(phases).reduce((sum, [phase, items]) => sum + items.length, 0);
-      const done = Object.entries(data).filter(([, v]) => v.status === 'Done').length;
+    function update(key, field, value) {
+      cachedData[key] = { ...cachedData[key], [field]: value };
+      docRef.set(cachedData);
+      updateProgressBar();
+    }
+
+    function updateProgressBar() {
+      const total = Object.entries(estrutura).reduce((sum, [_, items]) => sum + items.length, 0);
+      const done = Object.entries(cachedData).filter(([, v]) => v.status === 'Done').length;
       const percent = Math.round((done / total) * 100);
       document.getElementById('progress-bar').style.width = `${percent}%`;
     }
 
-    function update(key, field, value) {
-      cachedData[key] = { ...cachedData[key], [field]: value };
-      docRef.set(cachedData);
-    }
-
     function renderAll(data) {
       cachedData = data;
-      document.getElementById('tracker').innerHTML = Object.entries(phases).map(([p, items]) => renderTable(p, items, data)).join('');
-      updateProgress(data);
+      const container = document.getElementById('tracker');
+      container.innerHTML = Object.entries(estrutura).map(([section, items]) => renderTable(section, items, data)).join('');
+      updateProgressBar();
     }
 
     docRef.onSnapshot((docSnap) => {
@@ -96,29 +114,25 @@
   </script>
 
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #000000; padding: 20px; }
-    h1 { text-align: center; font-size: 2.5rem; margin-bottom: 10px; color: #000000; }
-    #progress-container { width: 100%; background: #e5e7eb; border-radius: 10px; height: 20px; margin: 10px auto 40px; overflow: hidden; }
-    #progress-bar { height: 100%; background: #0e5b1f; width: 0%; transition: width 0.3s ease-in-out; }
-    .phase-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); margin-bottom: 40px; }
-    .phase-title { font-size: 1.5rem; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+    body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #111827; padding: 20px; }
+    h1 { text-align: center; font-size: 2.2rem; color: #1f2937; margin-bottom: 20px; }
+    .phase-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 30px; }
+    .phase-title { font-size: 1.25rem; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 16px; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px 15px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-    th { background: #f3f4f6; font-weight: 600; color: #6b7280; font-size: 0.95rem; }
-    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; font: inherit; background: #fff; font-size: 0.9rem; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    th { background: #f3f4f6; text-align: left; color: #6b7280; font-size: 0.9rem; }
+    input, select, textarea { width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; font: inherit; font-size: 0.85rem; }
     textarea { resize: vertical; }
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; color: white; text-align: center; }
-    .badge.todo { background-color: #ef4444; }
-    .badge.inprogress { background-color: #f59e0b; }
-    .badge.done { background-color: #10b981; }
-    .footer { text-align: center; margin-top: 60px; padding: 20px; font-size: 0.9rem; color: #6b7280; }
-    .footer span { font-weight: 600; color: #07070a; }
+    .footer { text-align: center; margin-top: 50px; padding: 15px; font-size: 0.9rem; color: #6b7280; }
+    .footer span { color: #1d4ed8; font-weight: 500; }
+    #progress-container { width: 100%; background: #e5e7eb; border-radius: 10px; height: 20px; margin: 20px 0; overflow: hidden; }
+    #progress-bar { height: 100%; background: #3b82f6; width: 0%; transition: width 0.3s ease-in-out; }
   </style>
 </head>
 <body>
-  <h1>DOBTI Work Tracker</h1>
+  <h1>DOBTI - Unidade de Saúde Hospitalar</h1>
   <div id="progress-container"><div id="progress-bar"></div></div>
   <div id="tracker"></div>
-  <div class="footer">Built by <span>Renato Lopes</span></div>
+  <div class="footer">Criado por <span>Renato Lopes</span></div>
 </body>
 </html>
